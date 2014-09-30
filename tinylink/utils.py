@@ -2,6 +2,10 @@ CRC32_POLYNOMIAL = 0xEDB88320L
 CRC32_INITIAL = 0x00000000L
 
 def crc32(buf):
+    """
+    Calculate CRC32 of given input
+    """
+
     result = CRC32_INITIAL
 
     def crc32_value(c):
@@ -24,6 +28,10 @@ def crc32(buf):
     return result
 
 def checksum_header(flags, value):
+    """
+    Calculate checksum over the header.
+    """
+
     a = (flags & 0x00FF) >> 0
     b = (flags & 0xFF00) >> 8
     c = (value & 0x00FF) >> 0
@@ -32,4 +40,8 @@ def checksum_header(flags, value):
     return a ^ b ^ c ^ d
 
 def checksum_frame(data, checksum_header):
+    """
+    Calculate checksum of both the checksum header and the data.
+    """
+
     return crc32(data + bytearray([checksum_header])) & 0xffffffff
