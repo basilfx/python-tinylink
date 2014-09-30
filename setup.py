@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name="python-tinylink",
     version="1.0",
-    description="Streaming frame protocol library for embedded applications.",
+    description="Frame-based streaming protocol for embedded applications.",
     author="Bas Stottelaar",
     author_email="basstottelaar@gmail.com",
     py_modules=["tinylink"],
