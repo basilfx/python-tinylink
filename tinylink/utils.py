@@ -3,7 +3,7 @@ CRC32_INITIAL = 0x00000000L
 
 def crc32(buf):
     """
-    Calculate CRC32 of given input
+    Calculate CRC32 of given input.
     """
 
     result = CRC32_INITIAL

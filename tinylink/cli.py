@@ -1,7 +1,6 @@
 import sys
 import csv
 import signal
-import serial
 import select
 import struct
 import tinylink
@@ -9,10 +8,16 @@ import argparse
 import cStringIO
 import time
 
+try:
+    import serial
+except ImportError:
+    serial = None
+
 def run():
     """
     Entry point for console script.
     """
+
     sys.exit(main())
 
 def parse_arguments():
@@ -159,14 +164,20 @@ def main():
     Main entry point.
     """
 
+    if serial is None:
+        sys.stdout.write("TinyLink CLI uses PySerial, but it is not " \
+            "installed. Please install this first\n")
+        return 1
+
+    # Parse arguments
     arguments, parser = parse_arguments()
 
-    # Open  serial port and create link
     if arguments.endianness == "little":
         endianness = tinylink.LITTLE_ENDIAN
     else:
         endianness = tinylink.BIG_ENDIAN
 
+    # Open  serial port and create link
     handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
     link = tinylink.TinyLink(handle, max_length=arguments.length,
         endianness=endianness)
