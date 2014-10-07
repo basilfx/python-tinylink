@@ -2,12 +2,14 @@ from tinylink import utils
 
 import struct
 
+__version__ = "1.1"
+
 # This can be anything, and is used to synchronize a frame
 PREAMBLE = 0xAA55AA55
 
 # Endianness
 LITTLE_ENDIAN = "<"
-BIG_ENDINAN = ">"
+BIG_ENDIAN = ">"
 
 # Protocol states
 WAITING_FOR_PREAMBLE = 1
@@ -37,7 +39,7 @@ class BaseFrame(object):
         self.flags = flags
 
     def __repr__(self):
-        return "%s(%s, flags=0x%02x)" % (self.__class__.__name__,
+        return "%s(%s, flags=%d)" % (self.__class__.__name__,
             repr(self.data), self.flags)
 
 class Frame(BaseFrame):
@@ -77,10 +79,10 @@ class TinyLink(object):
     """
 
     def __init__(self, handle, endianness=LITTLE_ENDIAN,
-        max_length=2**(LEN_LENGTH * 8)):
+        max_length=2**(LEN_LENGTH * 8), ignore_damaged=False):
         """
         Construct a new TinyLink state machine. A state machine takes a handle,
-        which provides a `recv' and `send' method.
+        which provides a `read' and `write' method.
 
         The endianness is either LITTLE_ENDIAN or BIG_ENDIAN. While big endian
         is common for networking, little endian is directly compatible with ARM
@@ -90,6 +92,9 @@ class TinyLink(object):
         Both microcontroller and this instance should agree upon the value of
         `max_length'. In case a message is received that exceeds this value, it
         will be silently ignored.
+
+        By default, if a fully received frame is damaged, it will be returned
+        as a `DamagedFrame' instance, unless `ignored_damaged' is True.
         """
 
         self.handle = handle
@@ -105,9 +110,9 @@ class TinyLink(object):
         self.buffer = buffer(self.stream)
         self.index = 0
 
-    def send_frame(self, frame):
+    def write_frame(self, frame):
         """
-        Send a frame via the handle.
+        Write a frame via the handle.
         """
 
         result = bytearray()
@@ -130,38 +135,35 @@ class TinyLink(object):
                 frame.data, checksum_frame)
 
         # Write to file
-        return self.handle.send(result)
+        return self.handle.write(result)
 
     def reset(self):
         """
-        Shorthand for `send_data(ResetFrame())'.
+        Shorthand for `write_frame(ResetFrame())'.
         """
 
-        return self.send_frame(ResetFrame())
+        return self.write_frame(ResetFrame())
 
     def write(self, data, flags=FLAG_NONE):
         """
-        Shorthand for `send_data(Frame(data, flags=flags))'.
+        Shorthand for `write_frame(Frame(data, flags=flags))'.
         """
 
-        return self.send_frame(Frame(data, flags=flags))
+        return self.write_frame(Frame(data, flags=flags))
 
-    def read(self, limit=1, ignore_damaged=False):
+    def read(self, limit=1):
         """
         Read at `limit' bytes from the handle and process this byte. Returns a
         list of received frames, if any. A reset frame is indicated by a
         `ResetFrame' instance.
-
-        By default, if a fully received package is damaged, it will be returned
-        as a `DamagedFrame' instance, unless `ignored_damaged' is True.
         """
 
-        # Define list for all results
+        # List of frames received
         frames = []
 
         # Bytes are added one at a time
-        for byte in self.handle.recv(limit):
-            self.stream[self.index] = byte
+        while limit:
+            self.stream[self.index] = self.handle.read(1)
             self.index += 1
 
             # Decide what to do
@@ -217,12 +219,15 @@ class TinyLink(object):
                     # Verify checksum
                     if checksum_b == utils.checksum_frame(result, checksum_a):
                         frames.append(Frame(result, flags=flags))
-                    elif not ignore_damaged:
+                    elif not self.ignore_damaged:
                         frames.append(DamagedFrame(result, flags=flags))
 
                     # Reset to start state
                     self.index = 0
                     self.state = WAITING_FOR_PREAMBLE
+
+            # Decrement number of bytes to read
+            limit -= 1
 
         # Done
         return frames

@@ -2,7 +2,7 @@
 Frame-based streaming protocol for embedded applications.
 
 ## Introduction
-This is a Python module to provide a bi-directional frame-based streaming protocol for low-speed embedded applications, such as serial connected devices. It allowes the receiver to 'jump into' a stream of data frames. Every frame starts with a preamble, so the receiver can synchronize. Any mismatch in checksum will the receiver.
+This is a general purpose Python module to provide a bi-directional frame-based streaming protocol for low-speed embedded applications, such as serial connected devices. It allowes the receiver to 'jump into' a stream of data frames. Every frame starts with a preamble, so the receiver can synchronize. Any mismatch in checksum will the receiver.
 
 A payload is optional. The reserved `RESET` flag can be used to indicate that the link should reset, for instance when the receiver just started and the sender should restart.
 

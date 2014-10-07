@@ -12,15 +12,15 @@ class DummyHandle(object):
         self.index = 0
         self.length = 0
 
-    def send(self, data):
+    def write(self, data):
         self.buffer.extend(data)
         self.length += len(data)
 
         # Return number of bytes written
         return len(data)
 
-    def recv(self, count):
-        data = self.buffer[self.index:min(self.length, self.index+count)]
+    def read(self, count):
+        data = str(self.buffer[self.index:min(self.length, self.index+count)])
         self.index += len(data)
 
         # Return data
@@ -33,7 +33,7 @@ class TinyLinkTest(unittest.TestCase):
 
     def test_basic(self):
         """
-        Test send/receive by using a dummy handle.
+        Test read/write by using a dummy handle.
         """
 
         handle = DummyHandle()
@@ -99,7 +99,7 @@ class TinyLinkTest(unittest.TestCase):
         garbage = "Garbage here that doesn't synchronize."
         message = "Hi!"
 
-        size = handle.send(garbage) + link.write(message)
+        size = handle.write(garbage) + link.write(message)
         frames = link.read(size)
 
         self.assertEqual(len(frames), 1)
@@ -116,7 +116,7 @@ class TinyLinkTest(unittest.TestCase):
         garbage = "Garbage here that doesn't synchronize."
         message = "Hi!"
 
-        size = handle.send(garbage) + link.write(message)
+        size = handle.write(garbage) + link.write(message)
         frames = link.read(size)
 
         self.assertEqual(len(frames), 1)
