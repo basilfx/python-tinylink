@@ -7,7 +7,7 @@ setup(
     description="Frame-based streaming protocol for embedded applications.",
     author="Bas Stottelaar",
     author_email="basstottelaar@gmail.com",
-    py_modules=["tinylink"],
+    packages=["tinylink"],
     license = "MIT",
     keywords = "python embedded arm arduino tinylink streaming serial",
     test_suite="tests",
