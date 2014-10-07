@@ -166,7 +166,7 @@ def main():
 
     if serial is None:
         sys.stdout.write("TinyLink CLI uses PySerial, but it is not " \
-            "installed. Please install this first\n")
+            "installed. Please install this first.\n")
         return 1
 
     # Parse arguments
