@@ -27,15 +27,15 @@ def crc32(buf):
     # Done
     return result
 
-def checksum_header(flags, value):
+def checksum_header(flags, length):
     """
     Calculate checksum over the header.
     """
 
     a = (flags & 0x00FF) >> 0
     b = (flags & 0xFF00) >> 8
-    c = (value & 0x00FF) >> 0
-    d = (value & 0xFF00) >> 8
+    c = (length & 0x00FF) >> 0
+    d = (length & 0xFF00) >> 8
 
     return a ^ b ^ c ^ d
 
