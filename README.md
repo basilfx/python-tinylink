@@ -32,5 +32,8 @@ The latest development version can be installed via `pip install git+https://git
 ## Tests
 Tests can be executed with `nose`. Check the `tests/` folder for more information.
 
+## CLI
+A simple serial CLI is included. When installed, run `tinylink /dev/tty.PORT_HERE` to start it. You can use it to send raw bytes via the link and display what comes back.
+
 ## License
 See the `LICENSE` file (MIT license).
