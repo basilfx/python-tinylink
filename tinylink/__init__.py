@@ -4,6 +4,8 @@ import struct
 
 __version__ = "1.1"
 
+__all__ = ["Frame", "DamagedFrame", "ResetFrame", "TinyLink"]
+
 # This can be anything, and is used to synchronize a frame
 PREAMBLE = 0xAA55AA55
 
@@ -153,8 +155,8 @@ class TinyLink(object):
 
     def read(self, limit=1):
         """
-        Read at `limit' bytes from the handle and process this byte. Returns a
-        list of received frames, if any. A reset frame is indicated by a
+        Read up to `limit' bytes from the handle and process this byte. Returns
+        a list of received frames, if any. A reset frame is indicated by a
         `ResetFrame' instance.
         """
 
@@ -163,7 +165,13 @@ class TinyLink(object):
 
         # Bytes are added one at a time
         while limit:
-            self.stream[self.index] = self.handle.read(1)
+            char = self.handle.read(1)
+
+            if not char:
+                return []
+
+            # Append to stream
+            self.stream[self.index] = char
             self.index += 1
 
             # Decide what to do
