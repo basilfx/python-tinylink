@@ -108,7 +108,7 @@ def process_stdin(link):
 
     try:
         for item in items[0]:
-            if item[0] == "/":
+            if item[0] == "\\":
                 k, v = item[1:].split("=")
 
                 if k == "flags":
