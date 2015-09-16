@@ -31,6 +31,7 @@ LEN_CRC = 4
 LEN_HEADER = LEN_FLAGS + LEN_LENGTH + LEN_XOR
 LEN_BODY = LEN_CRC
 
+
 class BaseFrame(object):
     """
     Base frame.
@@ -41,8 +42,9 @@ class BaseFrame(object):
         self.flags = flags
 
     def __repr__(self):
-        return "%s(%s, flags=%d)" % (self.__class__.__name__,
-            repr(self.data), self.flags)
+        return "%s(%s, flags=%d)" % (
+            self.__class__.__name__, repr(self.data), self.flags)
+
 
 class Frame(BaseFrame):
     """
@@ -50,11 +52,13 @@ class Frame(BaseFrame):
     """
     pass
 
+
 class DamagedFrame(BaseFrame):
     """
     Represent damaged frame.
     """
     pass
+
 
 class ResetFrame(BaseFrame):
     """
@@ -67,12 +71,14 @@ class ResetFrame(BaseFrame):
     def __repr__(self):
         return "ResetFrame()"
 
+
 class TinyLink(object):
     """
     TinyLink state machine for streaming communication with low-speed embedded
     applications that only use RX/TX. Every message is encapsulated in a frame.
-    A frame has a header checksum and a frame checksum, to detect errors as fast
-    as possible (this can happen when you jump right into a stream of packets).
+    A frame has a header checksum and a frame checksum, to detect errors as
+    fast as possible (this can happen when you jump right into a stream of
+    packets).
 
     A typical frame has 13 bytes overhead, and can have a data payload up to
     65536 bytes.
@@ -81,7 +87,7 @@ class TinyLink(object):
     """
 
     def __init__(self, handle, endianness=LITTLE_ENDIAN,
-        max_length=2**(LEN_LENGTH * 8), ignore_damaged=False):
+                 max_length=2**(LEN_LENGTH * 8), ignore_damaged=False):
         """
         Construct a new TinyLink state machine. A state machine takes a handle,
         which provides a `read' and `write' method.
@@ -122,19 +128,22 @@ class TinyLink(object):
 
         # Check length of message
         if length > self.max_length:
-            raise ValueError("Message length %d exceeds max length %d" %
-                (length, self.max_length))
+            raise ValueError(
+                "Message length %d exceeds max length %d" % (
+                    length, self.max_length))
 
         # Pack header
         checksum_header = utils.checksum_header(frame.flags, length)
-        result += struct.pack(self.endianness + "IHHB", PREAMBLE, frame.flags,
-            length, checksum_header)
+        result += struct.pack(
+            self.endianness + "IHHB", PREAMBLE, frame.flags, length,
+            checksum_header)
 
         # Pack data
         if frame.data is not None:
             checksum_frame = utils.checksum_frame(frame.data, checksum_header)
-            result += struct.pack(self.endianness + str(length) + "sI",
-                frame.data, checksum_frame)
+            result += struct.pack(
+                self.endianness + str(length) + "sI", frame.data,
+                checksum_frame)
 
         # Write to file
         return self.handle.write(result)
@@ -177,8 +186,8 @@ class TinyLink(object):
             # Decide what to do
             if self.state == WAITING_FOR_PREAMBLE:
                 if self.index >= LEN_PREAMBLE:
-                    start, = struct.unpack_from(self.endianness + "I",
-                        self.buffer, self.index - 4)
+                    start, = struct.unpack_from(
+                        self.endianness + "I", self.buffer, self.index - 4)
 
                     if start == PREAMBLE:
                         # Advance to next state
@@ -198,7 +207,7 @@ class TinyLink(object):
 
                     # Verify checksum
                     if checksum == utils.checksum_header(flags, length) and \
-                        length <= self.max_length:
+                            length <= self.max_length:
 
                         if length > 0:
                             self.state = WAITING_FOR_BODY

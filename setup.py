@@ -8,15 +8,15 @@ setup(
     author="Bas Stottelaar",
     author_email="basstottelaar@gmail.com",
     packages=["tinylink"],
-    license = "MIT",
-    keywords = "python embedded arm arduino tinylink streaming serial",
+    license="MIT",
+    keywords="python embedded arm arduino tinylink streaming serial",
     test_suite="tests",
     entry_points={
         "console_scripts": [
             "tinylink = tinylink.cli:run",
         ]
     },
-    classifiers = [
+    classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",

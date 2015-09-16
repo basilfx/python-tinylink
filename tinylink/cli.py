@@ -1,6 +1,5 @@
 import sys
 import csv
-import signal
 import select
 import struct
 import tinylink
@@ -13,12 +12,14 @@ try:
 except ImportError:
     serial = None
 
+
 def run():
     """
     Entry point for console script.
     """
 
     sys.exit(main())
+
 
 def parse_arguments():
     """
@@ -29,15 +30,17 @@ def parse_arguments():
 
     # Add option
     parser.add_argument("port", type=str, help="serial port")
-    parser.add_argument("baudrate", type=int, default=9600,
-        help="serial baudrate")
-    parser.add_argument("--length", type=int, default=2**16,
+    parser.add_argument(
+        "baudrate", type=int, default=9600, help="serial baudrate")
+    parser.add_argument(
+        "--length", type=int, default=2**16, help="maximum length of frame")
+    parser.add_argument(
+        "--endianness", type=str, default="little", choices=["big", "little"],
         help="maximum length of frame")
-    parser.add_argument("--endianness", type=str, default="little",
-        choices=["big", "little"], help="maximum length of frame")
 
     # Parse command line
     return parser.parse_args(), parser
+
 
 def dump(prefix, data):
     """
@@ -53,10 +56,10 @@ def dump(prefix, data):
         for j in xrange(0, 16):
             if i + j < length:
                 b = ord(data[i + j])
-                hexstr  += "%02x " % b
+                hexstr += "%02x " % b
                 bytestr += data[i + j] if 0x20 <= b < 0x7F else "."
             else:
-                hexstr  += "   "
+                hexstr += "   "
 
             if (j % 4) == 3:
                 hexstr += " "
@@ -65,6 +68,7 @@ def dump(prefix, data):
 
     # Return concatenated string
     return "\n".join(result)
+
 
 def process_link(link):
     """
@@ -84,6 +88,7 @@ def process_link(link):
         else:
             sys.stdout.write("\n")
 
+
 def process_stdin(link):
     """
     Process stdin commands.
@@ -96,7 +101,8 @@ def process_stdin(link):
         return False
 
     # Very simple command parser
-    items = list(csv.reader(cStringIO.StringIO(command.strip()), delimiter=" "))
+    items = list(
+        csv.reader(cStringIO.StringIO(command.strip()), delimiter=" "))
 
     if not items:
         return
@@ -120,23 +126,22 @@ def process_stdin(link):
                 elif k == "repeat":
                     repeat = int(v)
                 else:
-                    raise ValueError("Unkown option: %s" % key)
+                    raise ValueError("Unkown option: %s" % k)
             else:
                 try:
-                    # Assume it's a float
+                    # Assume it is a float
                     value = struct.pack(link.endianness + pack, float(item))
                 except:
                     try:
-                        # Assume it's an int
-                        value = struct.pack(link.endianness + pack,
-                            int(item, 0))
+                        # Assume it is an int
+                        value = struct.pack(
+                            link.endianness + pack, int(item, 0))
                     except ValueError:
-                        # Assume as string
+                        # Assume it is a string
                         value = ""
 
                         for b in item:
-                            value += struct.pack(link.endianness + "B",
-                                ord(b))
+                            value += struct.pack(link.endianness + "B", ord(b))
 
                 # Concat to frame
                 frame.data = (frame.data or "") + value
@@ -159,14 +164,16 @@ def process_stdin(link):
             sys.stdout.write("Could not send frame: %s\n" % e)
             return
 
+
 def main():
     """
     Main entry point.
     """
 
     if serial is None:
-        sys.stdout.write("TinyLink CLI uses PySerial, but it is not " \
-            "installed. Please install this first.\n")
+        sys.stdout.write(
+            "TinyLink CLI uses PySerial, but it is not installed. Please "
+            "install this first.\n")
         return 1
 
     # Parse arguments
@@ -179,8 +186,8 @@ def main():
 
     # Open  serial port and create link
     handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
-    link = tinylink.TinyLink(handle, max_length=arguments.length,
-        endianness=endianness)
+    link = tinylink.TinyLink(
+        handle, max_length=arguments.length, endianness=endianness)
 
     # Loop until finished
     try:
