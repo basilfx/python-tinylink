@@ -2,3 +2,7 @@
 *.pyo
 *.so
 *.coverage
+
+build/
+dist/
+sdist/
