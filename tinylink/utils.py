@@ -1,5 +1,7 @@
-CRC32_POLYNOMIAL = 0xEDB88320L
-CRC32_INITIAL = 0x00000000L
+from six.moves import xrange
+
+CRC32_POLYNOMIAL = 0xEDB88320
+CRC32_INITIAL = 0x00000000
 
 
 def crc32(buf):
@@ -10,10 +12,10 @@ def crc32(buf):
     result = CRC32_INITIAL
 
     def crc32_value(c):
-        ulTemp1 = (result >> 8) & 0x00FFFFFFl
+        ulTemp1 = (result >> 8) & 0x00FFFFFF
         ulCRC = (result ^ c) & 0xff
 
-        for i in range(8):
+        for i in xrange(8):
             if ulCRC & 0x01:
                 ulCRC = (ulCRC >> 1) ^ CRC32_POLYNOMIAL
             else:
@@ -46,4 +48,5 @@ def checksum_frame(data, checksum_header):
     Calculate checksum of both the checksum header and the data.
     """
 
-    return crc32(data + bytearray([checksum_header])) & 0xffffffff
+    return crc32(
+        memoryview(data).tobytes() + bytearray([checksum_header])) & 0xFFFFFFFF

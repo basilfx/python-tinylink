@@ -1,10 +1,11 @@
 from tinylink import utils
 
 import struct
+import six
 
 __version__ = "1.1"
 
-__all__ = ["Frame", "DamagedFrame", "ResetFrame", "TinyLink"]
+__all__ = ["Frame", "TinyLink"]
 
 # This can be anything, and is used to synchronize a frame
 PREAMBLE = 0xAA55AA55
@@ -13,14 +14,16 @@ PREAMBLE = 0xAA55AA55
 LITTLE_ENDIAN = "<"
 BIG_ENDIAN = ">"
 
-# Protocol states
+# Protocol states.
 WAITING_FOR_PREAMBLE = 1
 WAITING_FOR_HEADER = 2
 WAITING_FOR_BODY = 3
 
-# Message flags
+# Message flags (reserved).
 FLAG_NONE = 0x00
 FLAG_RESET = 0x01
+FLAG_ERROR = 0x02
+FLAG_PRIORITY = 0x04
 
 # Don't change these values!
 LEN_PREAMBLE = 4
@@ -32,44 +35,25 @@ LEN_HEADER = LEN_FLAGS + LEN_LENGTH + LEN_XOR
 LEN_BODY = LEN_CRC
 
 
-class BaseFrame(object):
+class Frame(object):
     """
-    Base frame.
+    Represents a frame.
     """
 
-    def __init__(self, data=None, flags=FLAG_NONE):
+    def __init__(self, data=None, flags=FLAG_NONE, damaged=False):
+        if data is not None:
+            if not type(data) == six.binary_type:
+                raise ValueError("Provided data must be encoded as bytes.")
+        else:
+            data = bytes()
+
         self.data = data
         self.flags = flags
+        self.damaged = damaged
 
     def __repr__(self):
-        return "%s(%s, flags=%d)" % (
-            self.__class__.__name__, repr(self.data), self.flags)
-
-
-class Frame(BaseFrame):
-    """
-    Represent normal frame.
-    """
-    pass
-
-
-class DamagedFrame(BaseFrame):
-    """
-    Represent damaged frame.
-    """
-    pass
-
-
-class ResetFrame(BaseFrame):
-    """
-    Represent reset frame.
-    """
-
-    def __init__(self):
-        super(ResetFrame, self).__init__(None, FLAG_RESET)
-
-    def __repr__(self):
-        return "ResetFrame()"
+        return "%s(%s, flags=%d, damaged=%s)" % (
+            self.__class__.__name__, repr(self.data), self.flags, self.damaged)
 
 
 class TinyLink(object):
@@ -78,7 +62,7 @@ class TinyLink(object):
     applications that only use RX/TX. Every message is encapsulated in a frame.
     A frame has a header checksum and a frame checksum, to detect errors as
     fast as possible (this can happen when you jump right into a stream of
-    packets).
+    packets, without being synchronized).
 
     A typical frame has 13 bytes overhead, and can have a data payload up to
     65536 bytes.
@@ -108,6 +92,7 @@ class TinyLink(object):
         self.handle = handle
         self.endianness = endianness
         self.max_length = max_length
+        self.ignore_damaged = ignore_damaged
 
         # Set initial state
         self.state = WAITING_FOR_PREAMBLE
@@ -115,8 +100,13 @@ class TinyLink(object):
         # Pre-allocate buffer that fits header + body. The premable will be
         # cleared when it is detected, so it doesn't need space.
         self.stream = bytearray(max_length + LEN_HEADER + LEN_BODY)
-        self.buffer = buffer(self.stream)
         self.index = 0
+
+        # Python 2 does not allow unpack from bytearray, but Python 3.
+        if six.PY3:
+            self.buffer = self.stream
+        else:
+            self.buffer = buffer(self.stream)
 
     def write_frame(self, frame):
         """
@@ -148,13 +138,6 @@ class TinyLink(object):
         # Write to file
         return self.handle.write(result)
 
-    def reset(self):
-        """
-        Shorthand for `write_frame(ResetFrame())'.
-        """
-
-        return self.write_frame(ResetFrame())
-
     def write(self, data, flags=FLAG_NONE):
         """
         Shorthand for `write_frame(Frame(data, flags=flags))'.
@@ -164,9 +147,8 @@ class TinyLink(object):
 
     def read(self, limit=1):
         """
-        Read up to `limit' bytes from the handle and process this byte. Returns
-        a list of received frames, if any. A reset frame is indicated by a
-        `ResetFrame' instance.
+        Read up to `limit' bytes from the handle and process it. Returns a list
+        of received frames, if any.
         """
 
         # List of frames received
@@ -180,7 +162,7 @@ class TinyLink(object):
                 return []
 
             # Append to stream
-            self.stream[self.index] = char
+            self.stream[self.index] = ord(char)
             self.index += 1
 
             # Decide what to do
@@ -212,8 +194,8 @@ class TinyLink(object):
                         if length > 0:
                             self.state = WAITING_FOR_BODY
                         else:
-                            # Empty frame to indicate a reset frame
-                            frames.append(ResetFrame())
+                            # Frame without body.
+                            frames.append(Frame(flags=flags))
 
                             self.index = 0
                             self.state = WAITING_FOR_PREAMBLE
@@ -237,7 +219,7 @@ class TinyLink(object):
                     if checksum_b == utils.checksum_frame(result, checksum_a):
                         frames.append(Frame(result, flags=flags))
                     elif not self.ignore_damaged:
-                        frames.append(DamagedFrame(result, flags=flags))
+                        frames.append(Frame(result, flags=flags, damaged=True))
 
                     # Reset to start state
                     self.index = 0

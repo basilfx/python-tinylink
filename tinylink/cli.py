@@ -1,11 +1,14 @@
-import sys
+from six.moves import xrange
+from six import StringIO
+
 import csv
+import six
+import sys
+import time
 import select
 import struct
 import tinylink
 import argparse
-import cStringIO
-import time
 
 try:
     import serial
@@ -44,27 +47,28 @@ def parse_arguments():
 
 def dump(prefix, data):
     """
-    Dump data as two hex columns
+    Dump data as two hex columns.
     """
 
     result = []
     length = len(data)
 
     for i in xrange(0, length, 16):
-        hexstr = bytestr = ""
+        hexstr = ""
+        bytestr = b""
 
         for j in xrange(0, 16):
             if i + j < length:
-                b = ord(data[i + j])
+                b = six.indexbytes(data, i + j)
                 hexstr += "%02x " % b
-                bytestr += data[i + j] if 0x20 <= b < 0x7F else "."
+                bytestr += six.int2byte(b) if 0x20 <= b < 0x7F else b"."
             else:
                 hexstr += "   "
 
             if (j % 4) == 3:
                 hexstr += " "
 
-        result.append(prefix + " " + hexstr + bytestr)
+        result.append(prefix + " " + hexstr + bytestr.decode("ascii"))
 
     # Return concatenated string
     return "\n".join(result)
@@ -82,11 +86,8 @@ def process_link(link):
         sys.stdout.write("### Type = %s\n" % frame.__class__.__name__)
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
 
-        if type(frame) != tinylink.ResetFrame:
-            sys.stdout.write("### Lenght = %d\n" % len(frame.data))
-            sys.stdout.write(dump("<<<", frame.data) + "\n\n")
-        else:
-            sys.stdout.write("\n")
+        sys.stdout.write("### Length = %d\n" % len(frame.data))
+        sys.stdout.write(dump("<<<", frame.data) + "\n\n")
 
 
 def process_stdin(link):
@@ -96,19 +97,19 @@ def process_stdin(link):
 
     command = sys.stdin.readline()
 
-    # End of file
+    # End of file.
     if len(command) == 0:
         return False
 
-    # Very simple command parser
-    items = list(
-        csv.reader(cStringIO.StringIO(command.strip()), delimiter=" "))
+    # Abuse the CSV module as a command parser, because CSV-like arguments are
+    # possible.
+    items = list(csv.reader(StringIO(command.strip()), delimiter=" "))
 
     if not items:
         return
 
-    # Initialize state and start parsing
-    frame = tinylink.BaseFrame()
+    # Initialize state and start parsing.
+    frame = tinylink.Frame()
     repeat = 1
     pack = "B"
 
@@ -129,35 +130,33 @@ def process_stdin(link):
                     raise ValueError("Unkown option: %s" % k)
             else:
                 try:
-                    # Assume it is a float
+                    # Assume it is a float.
                     value = struct.pack(link.endianness + pack, float(item))
                 except:
                     try:
-                        # Assume it is an int
+                        # Assume it is an int.
                         value = struct.pack(
                             link.endianness + pack, int(item, 0))
                     except ValueError:
-                        # Assume it is a string
-                        value = ""
+                        # Assume it is a byte string.
+                        item = item.encode("ascii")
+                        value = struct.pack(
+                            link.endianness + str(len(item)) + "s", item)
 
-                        for b in item:
-                            value += struct.pack(link.endianness + "B", ord(b))
-
-                # Concat to frame
-                frame.data = (frame.data or "") + value
+                # Concat to frame.
+                frame.data = (frame.data or bytes()) + value
     except Exception as e:
         sys.stdout.write("Parse exception: %s\n" % e)
-        return
 
-    # Output the data
+    # Output the data.
     for i in xrange(repeat):
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
 
         if frame.data:
-            sys.stdout.write("### Lenght = %d\n" % len(frame.data))
+            sys.stdout.write("### Length = %d\n" % len(frame.data))
             sys.stdout.write(dump(">>>", frame.data) + "\n\n")
 
-        # Send frame
+        # Send the frame.
         try:
             link.write_frame(frame)
         except ValueError as e:
