@@ -1,14 +1,13 @@
-from six.moves import xrange
-from six import StringIO
-
+import argparse
 import csv
-import six
-import sys
-import time
 import select
 import struct
+import sys
+import time
+from io import StringIO
+from typing import Optional
+
 import tinylink
-import argparse
 
 try:
     import serial
@@ -16,36 +15,32 @@ except ImportError:
     serial = None
 
 
-def run():
-    """
-    Entry point for console script.
-    """
-
-    sys.exit(main())
-
-
-def parse_arguments():
+def parse_arguments(argv: list[str]) -> argparse.Namespace:
     """
     Create and parse command line arguments.
     """
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog=argv[0])
 
-    # Add option
+    # Add options.
     parser.add_argument("port", type=str, help="serial port")
+    parser.add_argument("baudrate", type=int, default=9600, help="serial baudrate")
     parser.add_argument(
-        "baudrate", type=int, default=9600, help="serial baudrate")
+        "--length", type=int, default=2**16, help="maximum length of frame"
+    )
     parser.add_argument(
-        "--length", type=int, default=2**16, help="maximum length of frame")
-    parser.add_argument(
-        "--endianness", type=str, default="little", choices=["big", "little"],
-        help="maximum length of frame")
+        "--endianness",
+        type=str,
+        default="little",
+        choices=["big", "little"],
+        help="maximum length of frame",
+    )
 
-    # Parse command line
-    return parser.parse_args(), parser
+    # Parse command line.
+    return parser.parse_args(argv[1:])
 
 
-def dump(prefix, data):
+def dump(prefix: str, data: bytes) -> str:
     """
     Dump data as two hex columns.
     """
@@ -53,15 +48,15 @@ def dump(prefix, data):
     result = []
     length = len(data)
 
-    for i in xrange(0, length, 16):
+    for i in range(0, length, 16):
         hexstr = ""
         bytestr = b""
 
-        for j in xrange(0, 16):
+        for j in range(0, 16):
             if i + j < length:
-                b = six.indexbytes(data, i + j)
+                b = data[i + j]
                 hexstr += "%02x " % b
-                bytestr += six.int2byte(b) if 0x20 <= b < 0x7F else b"."
+                bytestr += bytes((b,)) if 0x20 <= b < 0x7F else b"."
             else:
                 hexstr += "   "
 
@@ -70,18 +65,18 @@ def dump(prefix, data):
 
         result.append(prefix + " " + hexstr + bytestr.decode("ascii"))
 
-    # Return concatenated string
+    # Return concatenated string.
     return "\n".join(result)
 
 
-def process_link(link):
+def process_link(link: tinylink.TinyLink) -> None:
     """
     Process incoming link data.
     """
 
     frames = link.read()
 
-    # Print received frames
+    # Print received frames.
     for frame in frames:
         sys.stdout.write("### Type = %s\n" % frame.__class__.__name__)
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
@@ -90,7 +85,7 @@ def process_link(link):
         sys.stdout.write(dump("<<<", frame.data) + "\n\n")
 
 
-def process_stdin(link):
+def process_stdin(link: tinylink.TinyLink) -> Optional[bool]:
     """
     Process stdin commands.
     """
@@ -135,13 +130,13 @@ def process_stdin(link):
                 except:
                     try:
                         # Assume it is an int.
-                        value = struct.pack(
-                            link.endianness + pack, int(item, 0))
+                        value = struct.pack(link.endianness + pack, int(item, 0))
                     except ValueError:
                         # Assume it is a byte string.
-                        item = item.encode("ascii")
+                        item_bytes = item.encode("ascii")
                         value = struct.pack(
-                            link.endianness + str(len(item)) + "s", item)
+                            link.endianness + str(len(item_bytes)) + "s", item_bytes
+                        )
 
                 # Concat to frame.
                 frame.data = (frame.data or bytes()) + value
@@ -149,7 +144,7 @@ def process_stdin(link):
         sys.stdout.write("Parse exception: %s\n" % e)
 
     # Output the data.
-    for i in xrange(repeat):
+    for i in range(repeat):
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
 
         if frame.data:
@@ -164,7 +159,15 @@ def process_stdin(link):
             return
 
 
-def main():
+def run() -> None:
+    """
+    Entry point for console script.
+    """
+
+    sys.exit(main(sys.argv))
+
+
+def main(argv: list[str]) -> int:
     """
     Main entry point.
     """
@@ -172,49 +175,50 @@ def main():
     if serial is None:
         sys.stdout.write(
             "TinyLink CLI uses PySerial, but it is not installed. Please "
-            "install this first.\n")
+            "install this first.\n"
+        )
         return 1
 
-    # Parse arguments
-    arguments, parser = parse_arguments()
+    # Parse arguments.
+    arguments = parse_arguments(argv)
 
     if arguments.endianness == "little":
         endianness = tinylink.LITTLE_ENDIAN
     else:
         endianness = tinylink.BIG_ENDIAN
 
-    # Open  serial port and create link
+    # Open serial port and create link.
     handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
-    link = tinylink.TinyLink(
-        handle, max_length=arguments.length, endianness=endianness)
+    link = tinylink.TinyLink(handle, max_length=arguments.length, endianness=endianness)
 
-    # Loop until finished
+    # Loop until finished.
     try:
-        # Input indicator
+        # Input indicator.
         sys.stdout.write("--> ")
         sys.stdout.flush()
 
         while True:
             readables, _, _ = select.select([handle, sys.stdin], [], [])
 
-            # Read from serial port
+            # Read from serial port.
             if handle in readables:
                 process_link(link)
 
-            # Read from stdin
+            # Read from stdin.
             if sys.stdin in readables:
                 if process_stdin(link) is False:
                     break
 
-                # Input indicator
+                # Input indicator.
                 sys.stdout.write("--> ")
                 sys.stdout.flush()
     except KeyboardInterrupt:
         handle.close()
 
-    # Done
+    # Done.
     return 0
 
-# E.g. `python tinylink_cli.py /dev/tty.usbmodem1337 --baudrate 9600'
+
+# E.g. `python cli.py /dev/tty.usbmodem1337 --baudrate 9600`.
 if __name__ == "__main__":
     run()

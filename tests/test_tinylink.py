@@ -1,6 +1,5 @@
-from six.moves import xrange
-
 import unittest
+
 import tinylink
 
 
@@ -9,24 +8,28 @@ class DummyHandle(object):
     Dummy handler, so the TinyLink class can exchange data with itself.
     """
 
-    def __init__(self):
+    stream: bytes
+    index: int
+    length: int
+
+    def __init__(self) -> None:
         self.stream = bytearray()
         self.index = 0
         self.length = 0
 
-    def write(self, data):
+    def read(self, size: int) -> bytes:
+        data = self.stream[self.index : min(self.length, self.index + size)]
+        self.index += len(data)
+
+        # Return data.
+        return bytes(data)
+
+    def write(self, data: bytes) -> int:
         self.stream.extend(data)
         self.length += len(data)
 
-        # Return number of bytes written
+        # Return number of bytes written.
         return len(data)
-
-    def read(self, count):
-        data = self.stream[self.index:min(self.length, self.index + count)]
-        self.index += len(data)
-
-        # Return data
-        return bytes(data)
 
 
 class TinyLinkTest(unittest.TestCase):
@@ -46,10 +49,14 @@ class TinyLinkTest(unittest.TestCase):
         size = link.write(message)
 
         self.assertEqual(
-            size, tinylink.LEN_PREAMBLE + tinylink.LEN_HEADER +
-            tinylink.LEN_BODY + len(message))
+            size,
+            tinylink.LEN_PREAMBLE
+            + tinylink.LEN_HEADER
+            + tinylink.LEN_BODY
+            + len(message),
+        )
 
-        # Read `size' bytes to receive the full frame, test it partially
+        # Read `size` bytes to receive the full frame, test it partially.
         link.read(1)
         link.read(1)
         link.read(1)
@@ -68,14 +75,14 @@ class TinyLinkTest(unittest.TestCase):
 
         size = 0
 
-        for i in xrange(5):
+        for i in range(5):
             size += link.write(bytes([97 + i]))
 
         frames = link.read(size)
 
         self.assertEqual(len(frames), 5)
 
-        for i in xrange(5):
+        for i in range(5):
             self.assertEqual(frames[i].data, bytes([97 + i]))
 
     def test_sync(self):
@@ -86,7 +93,7 @@ class TinyLinkTest(unittest.TestCase):
         handle = DummyHandle()
         link = tinylink.TinyLink(handle)
 
-        garbage = b"Garbage here that doesn't synchronize."
+        garbage = b"Garbage here that does not synchronize."
         message = b"Hi!"
 
         size = handle.write(garbage) + link.write(message)
@@ -103,7 +110,7 @@ class TinyLinkTest(unittest.TestCase):
         handle = DummyHandle()
         link = tinylink.TinyLink(handle, max_length=4)
 
-        garbage = b"Garbage here that doesn't synchronize."
+        garbage = b"Garbage here that does not synchronize."
         message = b"Hi!"
 
         size = handle.write(garbage) + link.write(message)
@@ -153,7 +160,7 @@ class TinyLinkTest(unittest.TestCase):
         message = b"Hello, this is a test"
 
         size = link.write(message)
-        handle.stream[-tinylink.LEN_CRC:] = [0x00] * tinylink.LEN_CRC
+        handle.stream[-tinylink.LEN_CRC :] = [0x00] * tinylink.LEN_CRC
         frames = link.read(size)
 
         self.assertEqual(len(frames), 1)
@@ -162,7 +169,7 @@ class TinyLinkTest(unittest.TestCase):
 
     def test_damaged_b(self):
         """
-        Test damaged frame (header) that won't return anything.
+        Test damaged frame (header) that will not return anything.
         """
 
         handle = DummyHandle()
@@ -171,7 +178,7 @@ class TinyLinkTest(unittest.TestCase):
         message = b"Hello, this is a test"
 
         size = link.write(message)
-        handle.stream[tinylink.LEN_PREAMBLE+tinylink.LEN_HEADER-1] = 0x00
+        handle.stream[tinylink.LEN_PREAMBLE + tinylink.LEN_HEADER - 1] = 0x00
         frames = link.read(size)
 
         self.assertEqual(len(frames), 0)
