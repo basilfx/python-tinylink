@@ -1,5 +1,3 @@
-from six.moves import xrange
-
 import unittest
 import tinylink
 
@@ -68,14 +66,14 @@ class TinyLinkTest(unittest.TestCase):
 
         size = 0
 
-        for i in xrange(5):
+        for i in range(5):
             size += link.write(bytes([97 + i]))
 
         frames = link.read(size)
 
         self.assertEqual(len(frames), 5)
 
-        for i in xrange(5):
+        for i in range(5):
             self.assertEqual(frames[i].data, bytes([97 + i]))
 
     def test_sync(self):

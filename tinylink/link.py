@@ -2,7 +2,6 @@ from . import consts
 from . import utils
 
 import struct
-import six
 
 
 class Frame(object):
@@ -12,7 +11,7 @@ class Frame(object):
 
     def __init__(self, data=None, flags=consts.FLAG_NONE, damaged=False):
         if data is not None:
-            if not type(data) == six.binary_type:
+            if type(data) is not bytes:
                 raise ValueError("Provided data must be encoded as bytes.")
         else:
             data = bytes()
@@ -74,10 +73,7 @@ class TinyLink(object):
         self.index = 0
 
         # Python 2 does not allow unpack from bytearray, but Python 3.
-        if six.PY3:
-            self.buffer = self.stream
-        else:
-            self.buffer = buffer(self.stream)
+        self.buffer = self.stream
 
     def write_frame(self, frame):
         """

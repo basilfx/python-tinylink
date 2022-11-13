@@ -1,14 +1,12 @@
-from six.moves import xrange
-from six import StringIO
-
 import csv
-import six
 import sys
 import time
 import select
 import struct
 import tinylink
 import argparse
+
+from io import StringIO
 
 try:
     import serial
@@ -53,15 +51,15 @@ def dump(prefix, data):
     result = []
     length = len(data)
 
-    for i in xrange(0, length, 16):
+    for i in range(0, length, 16):
         hexstr = ""
         bytestr = b""
 
-        for j in xrange(0, 16):
+        for j in range(0, 16):
             if i + j < length:
-                b = six.indexbytes(data, i + j)
+                b = data[i + j]
                 hexstr += "%02x " % b
-                bytestr += six.int2byte(b) if 0x20 <= b < 0x7F else b"."
+                bytestr += bytes((b, )) if 0x20 <= b < 0x7F else b"."
             else:
                 hexstr += "   "
 
@@ -149,7 +147,7 @@ def process_stdin(link):
         sys.stdout.write("Parse exception: %s\n" % e)
 
     # Output the data.
-    for i in xrange(repeat):
+    for i in range(repeat):
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
 
         if frame.data:

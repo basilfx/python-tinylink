@@ -37,7 +37,6 @@ version = "2.0.0"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-six = "^1.16.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.10.0"

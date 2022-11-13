@@ -1,5 +1,3 @@
-from six.moves import xrange
-
 CRC32_POLYNOMIAL = 0xEDB88320
 CRC32_INITIAL = 0x00000000
 
@@ -15,7 +13,7 @@ def crc32(buf):
         ulTemp1 = (result >> 8) & 0x00FFFFFF
         ulCRC = (result ^ c) & 0xff
 
-        for i in xrange(8):
+        for i in range(8):
             if ulCRC & 0x01:
                 ulCRC = (ulCRC >> 1) ^ CRC32_POLYNOMIAL
             else:
