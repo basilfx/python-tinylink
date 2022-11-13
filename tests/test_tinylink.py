@@ -49,7 +49,7 @@ class TinyLinkTest(unittest.TestCase):
             size, tinylink.LEN_PREAMBLE + tinylink.LEN_HEADER +
             tinylink.LEN_BODY + len(message))
 
-        # Read `size' bytes to receive the full frame, test it partially
+        # Read `size` bytes to receive the full frame, test it partially.
         link.read(1)
         link.read(1)
         link.read(1)
@@ -86,7 +86,7 @@ class TinyLinkTest(unittest.TestCase):
         handle = DummyHandle()
         link = tinylink.TinyLink(handle)
 
-        garbage = b"Garbage here that doesn't synchronize."
+        garbage = b"Garbage here that does not synchronize."
         message = b"Hi!"
 
         size = handle.write(garbage) + link.write(message)
@@ -103,7 +103,7 @@ class TinyLinkTest(unittest.TestCase):
         handle = DummyHandle()
         link = tinylink.TinyLink(handle, max_length=4)
 
-        garbage = b"Garbage here that doesn't synchronize."
+        garbage = b"Garbage here that does not synchronize."
         message = b"Hi!"
 
         size = handle.write(garbage) + link.write(message)
@@ -162,7 +162,7 @@ class TinyLinkTest(unittest.TestCase):
 
     def test_damaged_b(self):
         """
-        Test damaged frame (header) that won't return anything.
+        Test damaged frame (header) that will not return anything.
         """
 
         handle = DummyHandle()

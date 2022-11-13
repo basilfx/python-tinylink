@@ -31,7 +31,7 @@ def parse_arguments():
 
     parser = argparse.ArgumentParser()
 
-    # Add option
+    # Add options.
     parser.add_argument("port", type=str, help="serial port")
     parser.add_argument(
         "baudrate", type=int, default=9600, help="serial baudrate")
@@ -41,7 +41,7 @@ def parse_arguments():
         "--endianness", type=str, default="little", choices=["big", "little"],
         help="maximum length of frame")
 
-    # Parse command line
+    # Parse command line.
     return parser.parse_args(), parser
 
 
@@ -70,7 +70,7 @@ def dump(prefix, data):
 
         result.append(prefix + " " + hexstr + bytestr.decode("ascii"))
 
-    # Return concatenated string
+    # Return concatenated string.
     return "\n".join(result)
 
 
@@ -81,7 +81,7 @@ def process_link(link):
 
     frames = link.read()
 
-    # Print received frames
+    # Print received frames.
     for frame in frames:
         sys.stdout.write("### Type = %s\n" % frame.__class__.__name__)
         sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
@@ -175,7 +175,7 @@ def main():
             "install this first.\n")
         return 1
 
-    # Parse arguments
+    # Parse arguments.
     arguments, parser = parse_arguments()
 
     if arguments.endianness == "little":
@@ -183,38 +183,38 @@ def main():
     else:
         endianness = tinylink.BIG_ENDIAN
 
-    # Open  serial port and create link
+    # Open serial port and create link.
     handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
     link = tinylink.TinyLink(
         handle, max_length=arguments.length, endianness=endianness)
 
-    # Loop until finished
+    # Loop until finished.
     try:
-        # Input indicator
+        # Input indicator.
         sys.stdout.write("--> ")
         sys.stdout.flush()
 
         while True:
             readables, _, _ = select.select([handle, sys.stdin], [], [])
 
-            # Read from serial port
+            # Read from serial port.
             if handle in readables:
                 process_link(link)
 
-            # Read from stdin
+            # Read from stdin.
             if sys.stdin in readables:
                 if process_stdin(link) is False:
                     break
 
-                # Input indicator
+                # Input indicator.
                 sys.stdout.write("--> ")
                 sys.stdout.flush()
     except KeyboardInterrupt:
         handle.close()
 
-    # Done
+    # Done.
     return 0
 
-# E.g. `python tinylink_cli.py /dev/tty.usbmodem1337 --baudrate 9600'
+# E.g. `python cli.py /dev/tty.usbmodem1337 --baudrate 9600`.
 if __name__ == "__main__":
     run()

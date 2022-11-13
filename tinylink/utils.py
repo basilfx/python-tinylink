@@ -23,7 +23,7 @@ def crc32(buf):
 
         return ulTemp1 ^ ulCRC
 
-    # Execute above function for each byte.
+    # Execute function for each byte.
     for b in buf:
         result = crc32_value(b)
 
