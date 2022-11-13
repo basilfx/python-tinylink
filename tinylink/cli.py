@@ -127,7 +127,7 @@ def process_stdin(link: tinylink.TinyLink) -> Optional[bool]:
                 try:
                     # Assume it is a float.
                     value = struct.pack(link.endianness + pack, float(item))
-                except:
+                except:  # noqa
                     try:
                         # Assume it is an int.
                         value = struct.pack(link.endianness + pack, int(item, 0))
