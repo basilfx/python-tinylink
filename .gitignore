@@ -1,8 +1,6 @@
-*.pyc
-*.pyo
-*.so
-*.coverage
-
-build/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.vscode/
 dist/
-sdist/
+env/
