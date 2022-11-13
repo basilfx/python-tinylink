@@ -1,13 +1,13 @@
+import argparse
 import csv
-import sys
-import time
 import select
 import struct
-from typing import Optional
-import tinylink
-import argparse
-
+import sys
+import time
 from io import StringIO
+from typing import Optional
+
+import tinylink
 
 try:
     import serial
@@ -24,13 +24,17 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
 
     # Add options.
     parser.add_argument("port", type=str, help="serial port")
+    parser.add_argument("baudrate", type=int, default=9600, help="serial baudrate")
     parser.add_argument(
-        "baudrate", type=int, default=9600, help="serial baudrate")
+        "--length", type=int, default=2**16, help="maximum length of frame"
+    )
     parser.add_argument(
-        "--length", type=int, default=2**16, help="maximum length of frame")
-    parser.add_argument(
-        "--endianness", type=str, default="little", choices=["big", "little"],
-        help="maximum length of frame")
+        "--endianness",
+        type=str,
+        default="little",
+        choices=["big", "little"],
+        help="maximum length of frame",
+    )
 
     # Parse command line.
     return parser.parse_args(argv[1:])
@@ -52,7 +56,7 @@ def dump(prefix: str, data: bytes) -> str:
             if i + j < length:
                 b = data[i + j]
                 hexstr += "%02x " % b
-                bytestr += bytes((b, )) if 0x20 <= b < 0x7F else b"."
+                bytestr += bytes((b,)) if 0x20 <= b < 0x7F else b"."
             else:
                 hexstr += "   "
 
@@ -126,13 +130,13 @@ def process_stdin(link: tinylink.TinyLink) -> Optional[bool]:
                 except:
                     try:
                         # Assume it is an int.
-                        value = struct.pack(
-                            link.endianness + pack, int(item, 0))
+                        value = struct.pack(link.endianness + pack, int(item, 0))
                     except ValueError:
                         # Assume it is a byte string.
                         item_bytes = item.encode("ascii")
                         value = struct.pack(
-                            link.endianness + str(len(item_bytes)) + "s", item_bytes)
+                            link.endianness + str(len(item_bytes)) + "s", item_bytes
+                        )
 
                 # Concat to frame.
                 frame.data = (frame.data or bytes()) + value
@@ -171,7 +175,8 @@ def main(argv: list[str]) -> int:
     if serial is None:
         sys.stdout.write(
             "TinyLink CLI uses PySerial, but it is not installed. Please "
-            "install this first.\n")
+            "install this first.\n"
+        )
         return 1
 
     # Parse arguments.
@@ -184,8 +189,7 @@ def main(argv: list[str]) -> int:
 
     # Open serial port and create link.
     handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
-    link = tinylink.TinyLink(
-        handle, max_length=arguments.length, endianness=endianness)
+    link = tinylink.TinyLink(handle, max_length=arguments.length, endianness=endianness)
 
     # Loop until finished.
     try:
@@ -213,6 +217,7 @@ def main(argv: list[str]) -> int:
 
     # Done.
     return 0
+
 
 # E.g. `python cli.py /dev/tty.usbmodem1337 --baudrate 9600`.
 if __name__ == "__main__":

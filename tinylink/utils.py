@@ -11,7 +11,7 @@ def crc32(buf):
 
     def crc32_value(c):
         ulTemp1 = (result >> 8) & 0x00FFFFFF
-        ulCRC = (result ^ c) & 0xff
+        ulCRC = (result ^ c) & 0xFF
 
         for i in range(8):
             if ulCRC & 0x01:
@@ -46,5 +46,4 @@ def checksum_frame(data, checksum_header):
     Calculate checksum of both the checksum header and the data.
     """
 
-    return crc32(
-        memoryview(data).tobytes() + bytearray([checksum_header])) & 0xFFFFFFFF
+    return crc32(memoryview(data).tobytes() + bytearray([checksum_header])) & 0xFFFFFFFF

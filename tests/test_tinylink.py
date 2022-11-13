@@ -1,4 +1,5 @@
 import unittest
+
 import tinylink
 
 
@@ -17,7 +18,7 @@ class DummyHandle(object):
         self.length = 0
 
     def read(self, size: int) -> bytes:
-        data = self.stream[self.index:min(self.length, self.index + size)]
+        data = self.stream[self.index : min(self.length, self.index + size)]
         self.index += len(data)
 
         # Return data.
@@ -48,8 +49,12 @@ class TinyLinkTest(unittest.TestCase):
         size = link.write(message)
 
         self.assertEqual(
-            size, tinylink.LEN_PREAMBLE + tinylink.LEN_HEADER +
-            tinylink.LEN_BODY + len(message))
+            size,
+            tinylink.LEN_PREAMBLE
+            + tinylink.LEN_HEADER
+            + tinylink.LEN_BODY
+            + len(message),
+        )
 
         # Read `size` bytes to receive the full frame, test it partially.
         link.read(1)
@@ -155,7 +160,7 @@ class TinyLinkTest(unittest.TestCase):
         message = b"Hello, this is a test"
 
         size = link.write(message)
-        handle.stream[-tinylink.LEN_CRC:] = [0x00] * tinylink.LEN_CRC
+        handle.stream[-tinylink.LEN_CRC :] = [0x00] * tinylink.LEN_CRC
         frames = link.read(size)
 
         self.assertEqual(len(frames), 1)
@@ -173,7 +178,7 @@ class TinyLinkTest(unittest.TestCase):
         message = b"Hello, this is a test"
 
         size = link.write(message)
-        handle.stream[tinylink.LEN_PREAMBLE+tinylink.LEN_HEADER-1] = 0x00
+        handle.stream[tinylink.LEN_PREAMBLE + tinylink.LEN_HEADER - 1] = 0x00
         frames = link.read(size)
 
         self.assertEqual(len(frames), 0)

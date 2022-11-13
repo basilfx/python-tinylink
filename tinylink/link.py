@@ -1,9 +1,7 @@
+import struct
 from typing import Protocol
 
-from . import consts
-from . import utils
-
-import struct
+from . import consts, utils
 
 
 class Handle(Protocol):
@@ -12,7 +10,7 @@ class Handle(Protocol):
     """
 
     def read(self, size: int) -> bytes:
-        """"
+        """ "
         Read up to  `size` bytes.
         """
 
@@ -31,8 +29,9 @@ class Frame:
     flags: int
     damaged: int
 
-    def __init__(self, data: bytes = None, flags: int = consts.FLAG_NONE,
-                 damaged: bool = False) -> None:
+    def __init__(
+        self, data: bytes = None, flags: int = consts.FLAG_NONE, damaged: bool = False
+    ) -> None:
         if data is not None:
             if type(data) is not bytes:
                 raise ValueError("Provided data must be encoded as bytes.")
@@ -45,7 +44,11 @@ class Frame:
 
     def __repr__(self) -> str:
         return "%s(%s, flags=%d, damaged=%s)" % (
-            self.__class__.__name__, repr(self.data), self.flags, self.damaged)
+            self.__class__.__name__,
+            repr(self.data),
+            self.flags,
+            self.damaged,
+        )
 
 
 class TinyLink:
@@ -67,9 +70,13 @@ class TinyLink:
     max_length: int
     ignore_damaged: bool
 
-    def __init__(self, handle: Handle, endianness: str = consts.LITTLE_ENDIAN,
-                 max_length: int = 2**(consts.LEN_LENGTH * 8),
-                 ignore_damaged: bool = False) -> None:
+    def __init__(
+        self,
+        handle: Handle,
+        endianness: str = consts.LITTLE_ENDIAN,
+        max_length: int = 2 ** (consts.LEN_LENGTH * 8),
+        ignore_damaged: bool = False,
+    ) -> None:
         """
         Construct a new TinyLink state machine. A state machine takes a handle,
         which provides a `read` and `write` method.
@@ -115,21 +122,25 @@ class TinyLink:
         # Check length of message.
         if length > self.max_length:
             raise ValueError(
-                "Message length %d exceeds max length %d" % (
-                    length, self.max_length))
+                "Message length %d exceeds max length %d" % (length, self.max_length)
+            )
 
         # Pack header.
         checksum_header = utils.checksum_header(frame.flags, length)
         result += struct.pack(
-            self.endianness + "IHHB", consts.PREAMBLE, frame.flags, length,
-            checksum_header)
+            self.endianness + "IHHB",
+            consts.PREAMBLE,
+            frame.flags,
+            length,
+            checksum_header,
+        )
 
         # Pack data.
         if frame.data is not None:
             checksum_frame = utils.checksum_frame(frame.data, checksum_header)
             result += struct.pack(
-                self.endianness + str(length) + "sI", frame.data,
-                checksum_frame)
+                self.endianness + str(length) + "sI", frame.data, checksum_frame
+            )
 
         # Write to file.
         return self.handle.write(result)
@@ -164,14 +175,18 @@ class TinyLink:
             # Decide what to do.
             if self.state == consts.WAITING_FOR_PREAMBLE:
                 if self.index >= consts.LEN_PREAMBLE:
-                    start, = struct.unpack_from(
-                        self.endianness + "I", self.buffer, self.index - 4)
+                    (start,) = struct.unpack_from(
+                        self.endianness + "I", self.buffer, self.index - 4
+                    )
 
                     if start == consts.PREAMBLE:
                         # Advance to next state.
                         self.index = 0
                         self.state = consts.WAITING_FOR_HEADER
-                    elif self.index == self.max_length + consts.LEN_HEADER + consts.LEN_BODY:
+                    elif (
+                        self.index
+                        == self.max_length + consts.LEN_HEADER + consts.LEN_BODY
+                    ):
                         # Preamble not found and stream is full. Copy last four
                         # bytes, because the next byte may form the preamble
                         # together with the last three bytes.
@@ -181,11 +196,14 @@ class TinyLink:
             elif self.state == consts.WAITING_FOR_HEADER:
                 if self.index == consts.LEN_HEADER:
                     flags, length, checksum = struct.unpack_from(
-                        self.endianness + "HHB", self.buffer)
+                        self.endianness + "HHB", self.buffer
+                    )
 
                     # Verify checksum.
-                    if checksum == utils.checksum_header(flags, length) and \
-                            length <= self.max_length:
+                    if (
+                        checksum == utils.checksum_header(flags, length)
+                        and length <= self.max_length
+                    ):
 
                         if length > 0:
                             self.state = consts.WAITING_FOR_BODY
@@ -203,13 +221,16 @@ class TinyLink:
             elif self.state == consts.WAITING_FOR_BODY:
                 # Unpack header.
                 flags, length, checksum_a = struct.unpack_from(
-                    self.endianness + "HHB", self.buffer)
+                    self.endianness + "HHB", self.buffer
+                )
 
                 if self.index == consts.LEN_HEADER + length + consts.LEN_CRC:
                     # Unpack body.
                     result, checksum_b = struct.unpack_from(
                         self.endianness + str(length) + "sI",
-                        self.buffer, consts.LEN_HEADER)
+                        self.buffer,
+                        consts.LEN_HEADER,
+                    )
 
                     # Verify checksum.
                     if checksum_b == utils.checksum_frame(result, checksum_a):
