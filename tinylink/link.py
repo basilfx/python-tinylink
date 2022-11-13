@@ -1,15 +1,38 @@
+from typing import Protocol
+
 from . import consts
 from . import utils
 
 import struct
 
 
-class Frame(object):
+class Handle(Protocol):
+    """
+    Protocol for a handler.
+    """
+
+    def read(self, size: int) -> bytes:
+        """"
+        Read up to  `size` bytes.
+        """
+
+    def write(self, data: bytes) -> int:
+        """
+        Write data and return the number of bytes written.
+        """
+
+
+class Frame:
     """
     Represents a frame.
     """
 
-    def __init__(self, data=None, flags=consts.FLAG_NONE, damaged=False):
+    data: bytes
+    flags: int
+    damaged: int
+
+    def __init__(self, data: bytes = None, flags: int = consts.FLAG_NONE,
+                 damaged: bool = False) -> None:
         if data is not None:
             if type(data) is not bytes:
                 raise ValueError("Provided data must be encoded as bytes.")
@@ -20,12 +43,12 @@ class Frame(object):
         self.flags = flags
         self.damaged = damaged
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "%s(%s, flags=%d, damaged=%s)" % (
             self.__class__.__name__, repr(self.data), self.flags, self.damaged)
 
 
-class TinyLink(object):
+class TinyLink:
     """
     TinyLink state machine for streaming communication with low-speed embedded
     applications that only use RX/TX. Every message is encapsulated in a frame.
@@ -39,8 +62,14 @@ class TinyLink(object):
     It does not provide error correction and the bytes are not aligned.
     """
 
-    def __init__(self, handle, endianness=consts.LITTLE_ENDIAN,
-                 max_length=2**(consts.LEN_LENGTH * 8), ignore_damaged=False):
+    handle: Handle
+    endianness: str
+    max_length: int
+    ignore_damaged: bool
+
+    def __init__(self, handle: Handle, endianness: str = consts.LITTLE_ENDIAN,
+                 max_length: int = 2**(consts.LEN_LENGTH * 8),
+                 ignore_damaged: bool = False) -> None:
         """
         Construct a new TinyLink state machine. A state machine takes a handle,
         which provides a `read` and `write` method.
@@ -75,7 +104,7 @@ class TinyLink(object):
         # Python 2 does not allow unpack from bytearray, but Python 3.
         self.buffer = self.stream
 
-    def write_frame(self, frame):
+    def write_frame(self, frame: Frame) -> int:
         """
         Write a frame via the handle.
         """
@@ -105,14 +134,14 @@ class TinyLink(object):
         # Write to file.
         return self.handle.write(result)
 
-    def write(self, data, flags=consts.FLAG_NONE):
+    def write(self, data: bytes, flags: int = consts.FLAG_NONE) -> int:
         """
         Shorthand for `write_frame(Frame(data, flags=flags))`.
         """
 
         return self.write_frame(Frame(data, flags=flags))
 
-    def read(self, limit=1):
+    def read(self, limit: int = 1) -> list[Frame]:
         """
         Read up to `limit` bytes from the handle and process it. Returns a list
         of received frames, if any.

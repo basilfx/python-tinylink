@@ -7,24 +7,28 @@ class DummyHandle(object):
     Dummy handler, so the TinyLink class can exchange data with itself.
     """
 
-    def __init__(self):
+    stream: bytes
+    index: int
+    length: int
+
+    def __init__(self) -> None:
         self.stream = bytearray()
         self.index = 0
         self.length = 0
 
-    def write(self, data):
+    def read(self, size: int) -> bytes:
+        data = self.stream[self.index:min(self.length, self.index + size)]
+        self.index += len(data)
+
+        # Return data.
+        return bytes(data)
+
+    def write(self, data: bytes) -> int:
         self.stream.extend(data)
         self.length += len(data)
 
-        # Return number of bytes written
+        # Return number of bytes written.
         return len(data)
-
-    def read(self, count):
-        data = self.stream[self.index:min(self.length, self.index + count)]
-        self.index += len(data)
-
-        # Return data
-        return bytes(data)
 
 
 class TinyLinkTest(unittest.TestCase):

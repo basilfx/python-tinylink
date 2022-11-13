@@ -3,6 +3,7 @@ import sys
 import time
 import select
 import struct
+from typing import Optional
 import tinylink
 import argparse
 
@@ -14,20 +15,12 @@ except ImportError:
     serial = None
 
 
-def run():
-    """
-    Entry point for console script.
-    """
-
-    sys.exit(main())
-
-
-def parse_arguments():
+def parse_arguments(argv: list[str]) -> argparse.Namespace:
     """
     Create and parse command line arguments.
     """
 
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog=argv[0])
 
     # Add options.
     parser.add_argument("port", type=str, help="serial port")
@@ -40,10 +33,10 @@ def parse_arguments():
         help="maximum length of frame")
 
     # Parse command line.
-    return parser.parse_args(), parser
+    return parser.parse_args(argv[1:])
 
 
-def dump(prefix, data):
+def dump(prefix: str, data: bytes) -> str:
     """
     Dump data as two hex columns.
     """
@@ -72,7 +65,7 @@ def dump(prefix, data):
     return "\n".join(result)
 
 
-def process_link(link):
+def process_link(link: tinylink.TinyLink) -> None:
     """
     Process incoming link data.
     """
@@ -88,7 +81,7 @@ def process_link(link):
         sys.stdout.write(dump("<<<", frame.data) + "\n\n")
 
 
-def process_stdin(link):
+def process_stdin(link: tinylink.TinyLink) -> Optional[bool]:
     """
     Process stdin commands.
     """
@@ -137,9 +130,9 @@ def process_stdin(link):
                             link.endianness + pack, int(item, 0))
                     except ValueError:
                         # Assume it is a byte string.
-                        item = item.encode("ascii")
+                        item_bytes = item.encode("ascii")
                         value = struct.pack(
-                            link.endianness + str(len(item)) + "s", item)
+                            link.endianness + str(len(item_bytes)) + "s", item_bytes)
 
                 # Concat to frame.
                 frame.data = (frame.data or bytes()) + value
@@ -162,7 +155,15 @@ def process_stdin(link):
             return
 
 
-def main():
+def run() -> None:
+    """
+    Entry point for console script.
+    """
+
+    sys.exit(main(sys.argv))
+
+
+def main(argv: list[str]) -> int:
     """
     Main entry point.
     """
@@ -174,7 +175,7 @@ def main():
         return 1
 
     # Parse arguments.
-    arguments, parser = parse_arguments()
+    arguments = parse_arguments(argv)
 
     if arguments.endianness == "little":
         endianness = tinylink.LITTLE_ENDIAN
