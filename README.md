@@ -1,7 +1,8 @@
 # python-tinylink
 Frame-based streaming protocol for embedded applications.
 
-[![Build Status](https://travis-ci.org/basilfx/python-tinylink.svg?branch=master)](https://travis-ci.org/basilfx/python-tinylink)
+[![Linting](https://github.com/basilfx/python-tinylink/actions/workflows/lint.yml/badge.svg)](https://github.com/basilfx/python-tinylink/actions/workflows/lint.yml)
+[![Testing](https://github.com/basilfx/python-tinylink/actions/workflows/test.yml/badge.svg)](https://github.com/basilfx/python-tinylink/actions/workflows/test.yml)
 
 ## Introduction
 This is a general purpose Python module to provide a bi-directional frame-based
