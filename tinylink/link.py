@@ -11,7 +11,7 @@ class Handle(Protocol):
 
     def read(self, size: int) -> bytes:
         """ "
-        Read up to  `size` bytes.
+        Read up to `size` bytes.
         """
 
     def write(self, data: bytes) -> int:
@@ -105,11 +105,8 @@ class TinyLink:
 
         # Pre-allocate buffer that fits header + body. The premable will be
         # cleared when it is detected, so it does not need space.
-        self.stream = bytearray(max_length + consts.LEN_HEADER + consts.LEN_BODY)
+        self.buffer = bytearray(max_length + consts.LEN_HEADER + consts.LEN_BODY)
         self.index = 0
-
-        # Python 2 does not allow unpack from bytearray, but Python 3.
-        self.buffer = self.stream
 
     def write_frame(self, frame: Frame) -> int:
         """
@@ -168,8 +165,8 @@ class TinyLink:
             if not char:
                 return []
 
-            # Append to stream.
-            self.stream[self.index] = ord(char)
+            # Append to buffer.
+            self.buffer[self.index] = ord(char)
             self.index += 1
 
             # Decide what to do.
@@ -187,10 +184,10 @@ class TinyLink:
                         self.index
                         == self.max_length + consts.LEN_HEADER + consts.LEN_BODY
                     ):
-                        # Preamble not found and stream is full. Copy last four
+                        # Preamble not found and buffer is full. Copy last four
                         # bytes, because the next byte may form the preamble
                         # together with the last three bytes.
-                        self.stream[0:4] = self.stream[-4:]
+                        self.buffer[0:4] = self.buffer[-4:]
                         self.index = 4
 
             elif self.state == consts.WAITING_FOR_HEADER:
