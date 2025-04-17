@@ -8,8 +8,7 @@ digraph G {
     receiving_header[shape=box, style=rounded, label="Receiving\nheader"]
     receiving_body[shape=box, style=rounded, label="Receiving\nbody"]
 
-    output_reset_frame[shape=box, style=rounded, label="Output\nreset frame"]
-    output_data_frame[shape=box, style=rounded, label="Output\ndata frame"]
+    output_frame[shape=box, style=rounded, label="Output frame"]
 
     start -> waiting_for_preamble
 
@@ -17,15 +16,12 @@ digraph G {
     waiting_for_preamble -> receiving_header[label="Preamble detected"]
 
     receiving_header -> receiving_header[label="Byte received"]
-    receiving_header -> receiving_body[label="Header complete,\nbody expected"]
+    receiving_header -> receiving_body[label="Header complete,\nchecksum OK"]
     receiving_header -> waiting_for_preamble[label="Header invalid"]
-
-    receiving_header -> output_reset_frame[label="Header complete,\nreset frame"]
-    output_reset_frame -> waiting_for_preamble
 
     receiving_body -> receiving_body[label="Byte received"]
     receiving_body -> waiting_for_preamble[label="Body invalid"]
 
-    receiving_body -> output_data_frame[label="Body complete,\ndata frame"]
-    output_data_frame -> waiting_for_preamble
+    receiving_body -> output_frame[label="Body complete,\nchecksum OK"]
+    output_frame -> waiting_for_preamble
 }
