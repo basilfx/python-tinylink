@@ -1,25 +1,34 @@
+import asyncio
+
+from . import types
+
 CRC32_POLYNOMIAL = 0xEDB88320
 CRC32_INITIAL = 0x00000000
 
 
-def crc32(buf):
-    """
-    Calculate CRC32 of given input.
+def crc32(buf) -> int:
+    """Calculate CRC32 of given input.
+
+    Args:
+        buf: the buffer to calculate CRC32 over.
+
+    Returns:
+        A four-byte CRC32 checksum.
     """
 
     result = CRC32_INITIAL
 
     def crc32_value(c):
-        ulTemp1 = (result >> 8) & 0x00FFFFFF
-        ulCRC = (result ^ c) & 0xFF
+        temp = (result >> 8) & 0x00FFFFFF
+        crc = (result ^ c) & 0xFF
 
-        for i in range(8):
-            if ulCRC & 0x01:
-                ulCRC = (ulCRC >> 1) ^ CRC32_POLYNOMIAL
+        for _ in range(8):
+            if crc & 0x01:
+                crc = (crc >> 1) ^ CRC32_POLYNOMIAL
             else:
-                ulCRC = ulCRC >> 1
+                crc = crc >> 1
 
-        return ulTemp1 ^ ulCRC
+        return temp ^ crc
 
     # Execute function for each byte.
     for b in buf:
@@ -28,22 +37,26 @@ def crc32(buf):
     return result
 
 
-def checksum_header(flags, length):
-    """
-    Calculate checksum over the header.
-    """
+def create_async_handle(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+) -> types.AsyncHandle:
+    """Create a handle from a `asyncio.StreamReader` and asyncio.StreamWriter`
+    pair.
 
-    a = (flags & 0x00FF) >> 0
-    b = (flags & 0xFF00) >> 8
-    c = (length & 0x00FF) >> 0
-    d = (length & 0xFF00) >> 8
+    Args:
+        reader: The reader instance.
+        writer: The writer instance.
 
-    return a ^ b ^ c ^ d
-
-
-def checksum_frame(data, checksum_header):
-    """
-    Calculate checksum of both the checksum header and the data.
+    Returns:
+        A handle that can be used with `link.AsyncTinyLink`.
     """
 
-    return crc32(memoryview(data).tobytes() + bytearray([checksum_header])) & 0xFFFFFFFF
+    class Handle:
+        async def read(self, size: int) -> bytes:
+            return await reader.read(size)
+
+        async def write(self, data: bytes) -> None:
+            writer.write(data)
+            await writer.drain()
+
+    return Handle()

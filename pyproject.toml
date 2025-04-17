@@ -7,7 +7,7 @@ exclude = '''
 )
 '''
 line-length = 88
-target-version = ["py39"]
+target-version = ["py312"]
 
 [tool.isort]
 profile = "black"
@@ -36,14 +36,19 @@ repository = "https://github.com/basilfx/python-tinylink"
 version = "2.0.0"
 
 [tool.poetry.dependencies]
-python = "^3.9"
+prompt-toolkit = { version = "^3.0.50", optional = true }
+pyserial-asyncio = { version = "^0.6", optional = true }
+python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.10.0"
-isort = "^5.12.0"
-flake8 = "^6.0.0"
-flake8-mypy = "^17.8.0"
-pytest = "^7.2.0"
+black = "^25.0.0"
+flake8 = "^7.1.0"
+isort = "^6.0.0"
+pytest = "^8.3.0"
+mypy = "^1.15.0"
+
+[tool.poetry.extras]
+cli = ["pyserial-asyncio", "prompt-toolkit"]
 
 [tool.poetry.scripts]
 tinylink = 'tinylink.cli:run'

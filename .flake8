@@ -1,3 +1,5 @@
 [flake8]
-ignore = E203, W503
 max-line-length = 88
+
+# Necessary for compatibility with the Black formatter.
+ignore = E203, W503
