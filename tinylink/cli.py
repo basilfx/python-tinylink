@@ -1,18 +1,19 @@
 import argparse
+import asyncio
 import csv
-import select
 import struct
 import sys
-import time
 from io import StringIO
 from typing import Optional
 
-import tinylink
+import serial_asyncio
+from prompt_toolkit import PromptSession
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.history import FileHistory
+from prompt_toolkit.patch_stdout import patch_stdout
 
-try:
-    import serial
-except ImportError:
-    serial = None
+import tinylink
+from tinylink.utils import create_async_handle
 
 
 def parse_arguments(argv: list[str]) -> argparse.Namespace:
@@ -24,16 +25,18 @@ def parse_arguments(argv: list[str]) -> argparse.Namespace:
 
     # Add options.
     parser.add_argument("port", type=str, help="serial port")
-    parser.add_argument("baudrate", type=int, default=9600, help="serial baudrate")
     parser.add_argument(
-        "--length", type=int, default=2**16, help="maximum length of frame"
+        "baudrate", type=int, nargs="?", default=9600, help="serial baudrate"
+    )
+    parser.add_argument(
+        "--length", type=int, default=2**16, help="maximum length of payload"
     )
     parser.add_argument(
         "--endianness",
         type=str,
         default="little",
         choices=["big", "little"],
-        help="maximum length of frame",
+        help="endianness of link",
     )
 
     # Parse command line.
@@ -69,93 +72,113 @@ def dump(prefix: str, data: bytes) -> str:
     return "\n".join(result)
 
 
-def process_link(link: tinylink.TinyLink) -> None:
+async def handle_link(link: tinylink.AsyncTinyLink) -> None:
     """
-    Process incoming link data.
-    """
-
-    frames = link.read()
-
-    # Print received frames.
-    for frame in frames:
-        sys.stdout.write("### Type = %s\n" % frame.__class__.__name__)
-        sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
-
-        sys.stdout.write("### Length = %d\n" % len(frame.data))
-        sys.stdout.write(dump("<<<", frame.data) + "\n\n")
-
-
-def process_stdin(link: tinylink.TinyLink) -> Optional[bool]:
-    """
-    Process stdin commands.
+    Process incoming frames.
     """
 
-    command = sys.stdin.readline()
+    while True:
+        frame = await link.read_frame()
 
-    # End of file.
-    if len(command) == 0:
-        return False
+        if frame:
+            sys.stdout.write(">>> # Flags = 0x%04x\n" % frame.flags)
 
+            if frame.payload:
+                sys.stdout.write(">>> # Length = %d\n" % len(frame.payload))
+                sys.stdout.write(dump(">>>", frame.payload) + "\n\n")
+
+
+async def handle_console(link: tinylink.AsyncTinyLink) -> Optional[bool]:
+    """
+    Process console inputs.
+    """
+
+    completer = WordCompleter(["\\flags=", "\\pack=", "\\wait=", "\\repeat="])
+
+    session = PromptSession(history=FileHistory(".history"))
+
+    while True:
+        with patch_stdout():
+            try:
+                line = await session.prompt_async("--> ", completer=completer)
+            except KeyboardInterrupt:
+                continue
+
+            if not line:
+                continue
+
+            await parse_line(link, line)
+
+
+async def parse_line(link: tinylink.AsyncTinyLink, line: str) -> None:
     # Abuse the CSV module as a command parser, because CSV-like arguments are
     # possible.
-    items = list(csv.reader(StringIO(command.strip()), delimiter=" "))
+    items = list(csv.reader(StringIO(line.strip()), delimiter=" "))
 
     if not items:
         return
 
-    # Initialize state and start parsing.
     frame = tinylink.Frame()
     repeat = 1
     pack = "B"
 
-    try:
-        for item in items[0]:
-            if item[0] == "\\":
+    for item in items[0]:
+        if item == "":
+            continue
+        elif item[0] == "\\":
+            try:
                 k, v = item[1:].split("=")
 
                 if k == "flags":
-                    frame.flags = int(v, 0)
+                    frame.flags = int(v) & 0xFFFF
                 elif k == "pack":
                     pack = v
                 elif k == "wait":
-                    time.sleep(float(v))
+                    await asyncio.sleep(float(v))
                 elif k == "repeat":
                     repeat = int(v)
                 else:
-                    raise ValueError("Unkown option: %s" % k)
-            else:
+                    raise ValueError(f"Unknown modifier: {k}")
+            except Exception as e:  # noqa
+                sys.stdout.write(f"Unable to parse modifier: {e}\n")
+                return
+        else:
+            try:
+                # Assume it is a float.
+                value = struct.pack(link.endianness + pack, float(item))
+            except:  # noqa
                 try:
-                    # Assume it is a float.
-                    value = struct.pack(link.endianness + pack, float(item))
+                    # Assume it is an int.
+                    value = struct.pack(link.endianness + pack, int(item, 0))
                 except:  # noqa
                     try:
-                        # Assume it is an int.
-                        value = struct.pack(link.endianness + pack, int(item, 0))
-                    except ValueError:
                         # Assume it is a byte string.
                         item_bytes = item.encode("ascii")
                         value = struct.pack(
                             link.endianness + str(len(item_bytes)) + "s", item_bytes
                         )
+                    except Exception as e:  # noqa
+                        sys.stdout.write(
+                            "Unable to parse input as float, integer or byte\n"
+                        )
+                        return
 
-                # Concat to frame.
-                frame.data = (frame.data or bytes()) + value
-    except Exception as e:
-        sys.stdout.write("Parse exception: %s\n" % e)
+            # Concat to frame.
+            frame.payload = (frame.payload or bytes()) + value
 
-    # Output the data.
-    for i in range(repeat):
-        sys.stdout.write("### Flags = 0x%04x\n" % frame.flags)
+    # Output the frame.
+    for _ in range(repeat):
+        sys.stdout.write("<<< # Flags = 0x%04x\n" % frame.flags)
 
-        if frame.data:
-            sys.stdout.write("### Length = %d\n" % len(frame.data))
-            sys.stdout.write(dump(">>>", frame.data) + "\n\n")
+        if frame.payload:
+            sys.stdout.write("<<< # Length = %d\n" % len(frame.payload))
+            sys.stdout.write(dump("<<<", frame.payload) + "\n\n")
 
-        # Send the frame.
+        # Write the frame.
         try:
-            link.write_frame(frame)
+            await link.write_frame(frame)
         except ValueError as e:
-            sys.stdout.write("Could not send frame: %s\n" % e)
+            sys.stdout.write(f"Could not write frame: {e}\n")
             return
 
 
@@ -164,20 +187,13 @@ def run() -> None:
     Entry point for console script.
     """
 
-    sys.exit(main(sys.argv))
+    sys.exit(asyncio.run(main(sys.argv)))
 
 
-def main(argv: list[str]) -> int:
+async def main(argv: list[str]) -> int:
     """
     Main entry point.
     """
-
-    if serial is None:
-        sys.stdout.write(
-            "TinyLink CLI uses PySerial, but it is not installed. Please "
-            "install this first.\n"
-        )
-        return 1
 
     # Parse arguments.
     arguments = parse_arguments(argv)
@@ -188,32 +204,18 @@ def main(argv: list[str]) -> int:
         endianness = tinylink.BIG_ENDIAN
 
     # Open serial port and create link.
-    handle = serial.Serial(arguments.port, baudrate=arguments.baudrate)
-    link = tinylink.TinyLink(handle, max_length=arguments.length, endianness=endianness)
+    reader, writer = await serial_asyncio.open_serial_connection(
+        url=arguments.port, baudrate=arguments.baudrate
+    )
 
-    # Loop until finished.
-    try:
-        # Input indicator.
-        sys.stdout.write("--> ")
-        sys.stdout.flush()
+    link = tinylink.AsyncTinyLink(
+        create_async_handle(reader, writer),
+        max_payload_length=arguments.length,
+        endianness=endianness,
+    )
 
-        while True:
-            readables, _, _ = select.select([handle, sys.stdin], [], [])
-
-            # Read from serial port.
-            if handle in readables:
-                process_link(link)
-
-            # Read from stdin.
-            if sys.stdin in readables:
-                if process_stdin(link) is False:
-                    break
-
-                # Input indicator.
-                sys.stdout.write("--> ")
-                sys.stdout.flush()
-    except KeyboardInterrupt:
-        handle.close()
+    # Start co-routines and wait until finished.
+    await asyncio.gather(handle_console(link), handle_link(link))
 
     # Done.
     return 0

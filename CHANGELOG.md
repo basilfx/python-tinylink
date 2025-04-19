@@ -1,12 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Highlights:
+* Added: support for asynchronous handles.
+* Added: escaping of the header and body (protocol).
+* Changed: minimal Python version is Python 3.12.
+* Changed: body checksum is always included (protocol).
+* Changed: body checksum is now calculated over header and payload (protocol).
+* Fixed: preamble is now read as string of bytes.
+* Improved: CLI is more interactive.
+* Improved: consistent terminology and naming.
+* Removed: reserved flags (protocol).
+
 ## v2.0.0
 Released 17 September 2015
 
 Highlights:
 * Added: Python 3.4 support.
-* Improved: More strict handling of bytes.
-* Improved: Formatted code according to PEP8.
+* Improved: more strict handling of bytes.
+* Improved: formatted code according to PEP8.
 * Changed: ResetFrame is now a Frame, with correct flags set.
 * Changed: DamagedFrame is now a property on a Frame.
 

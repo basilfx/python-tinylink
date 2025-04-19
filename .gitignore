@@ -1,4 +1,5 @@
 __pycache__/
+.history
 .mypy_cache/
 .pytest_cache/
 .vscode/
